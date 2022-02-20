@@ -1,0 +1,33 @@
+dependencies:
+- name: postgres
+  repository: file://../postgres
+  version: 0.1.0
+- name: redis
+  repository: file://../redis
+  version: 0.1.0
+- name: data-lake-connector
+  repository: file://../data-lake-connector
+  version: 0.1.0
+- name: device-manager
+  repository: file://../device-manager
+  version: 0.1.0
+- name: frontend
+  repository: file://../frontend
+  version: 0.1.0
+- name: icomox-kafka-connect
+  repository: file://../icomox-kafka-connect
+  version: 0.1.0
+- name: keycloak
+  repository: file://../keycloak
+  version: 0.1.0
+- name: processors
+  repository: file://../processors
+  version: 0.1.0
+- name: receiver
+  repository: file://../receiver
+  version: 0.1.0
+- name: rest-service
+  repository: file://../rest-service
+  version: 0.1.0
+digest: sha256:b0bfba4c0b044a7744487e2bb96c6a5fe53acf1bedc4915dcf02d1e87ee9fd03
+generated: "2021-12-28T13:03:51.0814365+02:00"

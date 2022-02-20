@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rest-backend
+spec:
+  selector:
+    matchLabels:
+      app: rest-backend
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: rest-backend
+    spec:
+      imagePullSecrets:
+      - name: shtech.azurecr.io     
+      containers:
+      - name: rest-backend
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        ports:
+        - containerPort: {{ .Values.service.port }}
+        resources:
+          requests:
+            memory: 400Mi
+          limits:
+            memory: 400Mi
+        env:
+        - name: SPRING_REDIS_HOST
+          value: redis-master
+        - name: SPRING_REDIS_PORT
+          value: "6379"
+        - name: JDK_JAVA_OPTIONS
+          value: -Xms256m -Xmx256m
+        - name: SPRING_PROFILES_ACTIVE
+          value: cassandra
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://postgres-ingress:5432/postgres
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_USER
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_PASSWORD
+        - name: SPRING_DATA_CASSANDRA_CONTACT_POINTS
+          value: shtech-cass-cl-shtech-cass-dc-service.cass-operator
+        - name: SPRING_DATA_CASSANDRA_KEYSPACE_NAME
+          value: shtech
+        - name: SPRING_DATA_CASSANDRA_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: shtech-cass-cl-superuser
+              key: username
+        - name: SPRING_DATA_CASSANDRA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: shtech-cass-cl-superuser
+              key: pass
+      

@@ -1,0 +1,196 @@
+parameters:
+  - name: aks
+    type: string
+    default: 
+    displayName: Aks Name 
+
+  - name: resourceGroup
+    type: string
+    default: 
+    displayName: resource Group
+ 
+  - name: location
+    type: string
+    default: westeurope
+    displayName: location
+
+  - name: dockerimage
+    type: string
+    default: 
+    displayName: docker image
+  
+  - name: dockerversion
+    type: string
+    default: 
+    displayName: docker version
+
+  - name: subscription
+    type: string
+    default: Shiratech (Sela CSP)
+    displayName: subscription 
+
+  - name: environment
+    type: string
+    default: 
+    displayName: environment 
+
+  - name: version
+    type: string
+    default: "0.0.1"
+    displayName: helm version 
+
+  - name: chart
+    type: string
+    default: main
+    displayName: helm chart  
+
+  - name: namespace
+    type: string
+    default: 
+    displayName: namespace 
+
+
+stages:
+- stage: CD
+
+  jobs:
+  - job: Job
+    displayName: Job
+    pool:
+      vmImage: ubuntu-latest
+
+    steps:
+    # - script:
+    #     echo "acr_connection_name= $(acr_connection_name)"
+    #   displayName: test    
+    - task: AzureCLI@2
+      displayName: 'Pull Helm Charts'
+      env:
+        aks: ${{ parameters.aks}}
+        resourceGroup: ${{ parameters.resourceGroup }}
+        location: ${{ parameters.location }}
+        environment: ${{ parameters.environment}}
+        version: ${{ parameters.version }}
+        chart: ${{ parameters.chart}}
+        namespace: ${{ parameters.namespace}}
+        dockerimage: ${{ parameters.dockerimage }}
+        dockerversion: ${{ parameters.dockerversion }}
+      inputs:
+        scriptType: bash
+        scriptLocation: inlineScript
+        azureSubscription: '${{ parameters.subscription}}'
+        inlineScript: |
+          echo "az aks get-credentials"
+          az aks get-credentials -n ${{ parameters.aks }} -g ${{ parameters.resourceGroup }}
+          
+          echo "helm registry login $(acr_login_server) --username $(acr_username) --password-stdin"
+          echo "$(acr_password)" | helm registry login $(acr_login_server) --username "$(acr_username)" --password-stdin
+    
+          # helm package components/icomox/main --dependency-update --version ${{ parameters.version }} --debug
+    
+          # helm push ${{ parameters.chart}}-${{ parameters.version }}.tgz oci://shiratechthirdparty.azurecr.io/helm
+
+          echo "helm pull"
+          helm pull oci://$(acr_login_server)/helm/${{ parameters.chart}} --version ${{ parameters.version }}
+          
+    - task: AzureCLI@2
+      displayName: 'Upgrade Helm Charts'
+      env:
+        aks: ${{ parameters.aks}}
+        resourceGroup: ${{ parameters.resourceGroup }}
+        location: ${{ parameters.location }}
+        environment: ${{ parameters.environment}}
+        version: ${{ parameters.version }}
+        chart: ${{ parameters.chart}}
+        namespace: ${{ parameters.namespace}}
+        dockerimage: ${{ parameters.dockerimage }}
+        dockerversion: ${{ parameters.dockerversion }}
+      inputs:
+        scriptType: bash
+        scriptLocation: inlineScript
+        azureSubscription: '${{ parameters.subscription}}'
+        inlineScript: |
+          REL_FOUND=$(helm history main | grep deployed | awk '{print $1}' || echo "")
+          echo $REL_FOUND
+
+          helm upgrade --install ${{ parameters.chart}} ${{ parameters.chart}}-${{ parameters.version }}.tgz \
+              --set device-manager.image.tag=$(Build.BuildId) \
+              --set device-manager.image.repository=$(acr_login_server)/device-manager \
+              --set icomox-kafka-connect.image.tag=$(Build.BuildId) \
+              --set icomox-kafka-connect.image.repository=$(acr_login_server)/shtech-kafka-connect \
+              --set frontend.image.tag=$(Build.BuildId) \
+              --set frontend.image.repository=$(acr_login_server)/shtech-frontend \
+              --set rest-service.image.tag=$(Build.BuildId) \
+              --set rest-service.image.repository=$(acr_login_server)/shtech-rest-service \
+              --set frontend.ingress.hosts[0].host=frontend-${{ parameters.namespace }}.shtechlive.net \
+              --set frontend.ingress.tls[0].hosts[0]=frontend-${{ parameters.namespace }}.shtechlive.net \
+              --set frontend.ingress.hosts[0].paths[0].path=/ \
+              --set frontend.ingress.hosts[0].paths[0].pathType=ImplementationSpecific \
+              --set frontend.ingress.hosts[0].paths[1].path='/device/.*' \
+              --set frontend.ingress.hosts[0].paths[1].pathType=ImplementationSpecific \
+              --set rest-service.ingress.hosts[0].host=rest-service-${{ parameters.namespace }}.shtechlive.net \
+              --set rest-service.ingress.tls[0].hosts[0]=rest-service-${{ parameters.namespace }}.shtechlive.net \
+              --set rest-service.ingress.hosts[0].paths[0].path='/rest(/|$)(.*)' \
+              --set rest-service.ingress.hosts[0].paths[0].pathType=ImplementationSpecific \
+              --set keycloak.ingress.hosts[0].host=keycloak-${{ parameters.namespace }}.shtechlive.net \
+              --set keycloak.ingress.tls[0].hosts[0]=keycloak-${{ parameters.namespace }}.shtechlive.net \
+              --set keycloak.ingress.hosts[0].paths[0].path='/auth(/|$)(.*)' \
+              --set keycloak.ingress.hosts[0].paths[0].pathType=ImplementationSpecific \
+              --namespace ${{ parameters.namespace }}
+
+
+    - task:  AzureCLI@2
+      name: upgrade_helm_charts
+      displayName: 'Upgrade Helm Charts'
+      env:
+        aks: ${{ parameters.aks}}
+        resourceGroup: ${{ parameters.resourceGroup }}
+      inputs:
+        scriptType: bash
+        scriptLocation: inlineScript
+        azureSubscription: '${{ parameters.subscription}}'
+        inlineScript: |
+          # if <latest helm history> != "deployed" #(failed)
+
+            REL_FOUND=$(helm history main | grep deployed | awk '{print $1}' || echo "")
+            echo $REL_FOUND
+
+            helm rollback ${{ parameters.chart}} $REL_FOUND 
+            exit 1
+          #else 
+           # do nothing
+
+    - task: Docker@2
+      displayName: Docker Login to ACR
+      inputs:
+        command: login
+        containerRegistry: '$(acr_connection_name)'
+
+    # - task: Docker@2
+    #   displayName: push
+    #   inputs:
+    #     containerRegistry: '$(acr_connection_name)'
+    #     repository: $(acr_login_server)/${{ parameters.dockerimage }}
+    #     command: push
+    #     tags: '${{ parameters.environment}}'            
+    - task: AzureCLI@2
+      displayName: 'Docker Tag'
+      env:
+        aks: ${{ parameters.aks}}
+        resourceGroup: ${{ parameters.resourceGroup }}
+        location: ${{ parameters.location }}
+        environment: ${{ parameters.environment}}
+        version: ${{ parameters.version }}
+        chart: ${{ parameters.chart}}
+        namespace: ${{ parameters.namespace}}
+        dockerimage: ${{ parameters.dockerimage }}
+        dockerversion: ${{ parameters.dockerversion }}
+      inputs:
+        scriptType: bash
+        scriptLocation: inlineScript
+        azureSubscription: '${{ parameters.subscription}}'
+        inlineScript: |
+          # az acr login -n icomoxthirdparty
+          docker pull $(acr_login_server)/${{ parameters.dockerimage }}:${{ parameters.dockerversion }} 
+          docker tag $(acr_login_server)/${{ parameters.dockerimage }}:${{ parameters.dockerversion }} $(acr_login_server)/${{ parameters.dockerimage }}:${{ parameters.environment}}
+          docker push $(acr_login_server)/${{ parameters.dockerimage }}:${{ parameters.environment}} 

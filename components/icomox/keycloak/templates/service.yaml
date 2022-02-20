@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-svc
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Chart.Name }}
+  ports:
+  - name: http
+    port: {{ .Values.service.port }}
+    targetPort: {{ .Values.service.port }}
+  - name: https
+    port: 8445
+    targetPort: 8445
+

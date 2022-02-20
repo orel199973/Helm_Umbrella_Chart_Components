@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: receiver
+spec:
+  selector:
+    matchLabels:
+      app: receiver
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: receiver
+    spec:
+      imagePullSecrets:
+      - name: shtech.azurecr.io
+      containers:
+        - name: receiver
+          image: shtech.azurecr.io/receiver:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          envFrom:
+            - configMapRef:
+                name: shtech-kafka-cm-envars
+          resources:
+            requests:
+              memory: 100Mi
+            limits:
+              memory: 100Mi

@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: icomoxthirdparty.azurecr.io/keycloak:1.0
+        env:
+        - name: DB_VENDOR
+          value: postgres
+        - name: DB_ADDR
+          value: postgres-ingress
+        - name: DB_NAME
+          value: keycloak
+        - name: DB_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_PASSWORD
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_USER
+        - name: KEYCLOAK_USER
+          value: "admin"
+        - name: KEYCLOAK_PASSWORD
+          value: "shtech@admin"
+        - name: PROXY_ADDRESS_FORWARDING
+          value: "true"
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.port }}
+        - name: https
+          containerPort: 8443
+        readinessProbe:
+          httpGet:
+            path: /auth/realms/master
+            port: {{ .Values.service.port }}
+        volumeMounts:
+        - name: tls-keys
+          mountPath: "/etc/x509/https"
+          readOnly: true
+      volumes:
+        - name: tls-keys
+          secret:
+            secretName: tls-keys

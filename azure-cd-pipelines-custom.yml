@@ -1,0 +1,72 @@
+trigger:
+- none
+
+pool:
+  vmImage: ubuntu-latest
+
+parameters:
+  - name: aks
+    type: string
+    default: 
+    displayName: Aks Name 
+
+  - name: resourceGroup
+    type: string
+    default: 
+    displayName: resource Group
+
+  - name: location
+    type: string
+    default: 
+    displayName: location
+
+  - name: dockerimage
+    type: string
+    default: 
+    displayName: docker image
+  
+  - name: dockerversion
+    type: string
+    default: 
+    displayName: docker version
+
+  - name: subscription
+    type: string
+    default: Shiratech (Sela CSP)
+    displayName: subscription 
+
+  - name: environment
+    type: string
+    default: 
+    displayName: environment 
+
+  - name: version
+    type: string
+    default: 
+    displayName: helm version 
+
+  - name: chart
+    type: string
+    default: 
+    displayName: helm chart 
+
+  - name: namespace
+    type: string
+    default: 
+    displayName: namespace 
+
+variables:
+  - group: all
+
+stages:
+- template: template-cd-pipeline-all-env.yml
+  parameters:
+   aks: ${{ parameters.aks}}
+   resourceGroup: ${{ parameters.resourceGroup}}
+   location: ${{ parameters.location }}
+   environment: ${{ parameters.environment}}
+   version: ${{ parameters.version}}
+   chart: ${{ parameters.chart}}
+   namespace: ${{ parameters.namespace}}
+   dockerimage: ${{ parameters.dockerimage }}
+   dockerversion: ${{ parameters.dockerversion }}

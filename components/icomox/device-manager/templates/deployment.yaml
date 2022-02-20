@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: device-manager
+spec:
+  selector:
+    matchLabels:
+      app: device-manager
+  replicas: {{  .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: device-manager
+    spec:
+      containers:
+      - name: device-manager
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: 300Mi
+          limits:
+            memory: 300Mi
+        ports:
+        - containerPort: {{ .Values.service.port }}
+        env:
+        - name: SPRING_REDIS_HOST
+          value: redis-master
+        - name: SPRING_REDIS_PORT
+          value: "6379"
+        - name: JDK_JAVA_OPTIONS
+          value: -Xms128m -Xmx128m
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:postgresql://postgres-ingress:5432/postgres
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_USER
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_PASSWORD
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: icomox-kafka-cm-envars
+              key: KAFKA_BOOTSTRAP
+        - name: SPRING_DATA_CASSANDRA_CONTACT_POINTS
+          value: icomox-cass-cl-icomox-cass-dc-service.cass-operator
+        - name: SPRING_DATA_CASSANDRA_KEYSPACE_NAME
+          value: icomox
+        - name: SPRING_DATA_CASSANDRA_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: icomox-cass-cl-superuser
+              key: username
+        - name: SPRING_DATA_CASSANDRA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: icomox-cass-cl-superuser
+              key: pass
+      imagePullSecrets:
+      - name: shtech.io 
