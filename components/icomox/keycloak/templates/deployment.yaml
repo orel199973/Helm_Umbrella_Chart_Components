@@ -35,7 +35,7 @@ spec:
         - name: KEYCLOAK_USER
           value: "admin"
         - name: KEYCLOAK_PASSWORD
-          value: "shtech@admin"
+          value: "1234@ad"
         - name: PROXY_ADDRESS_FORWARDING
           value: "true"
         ports:
